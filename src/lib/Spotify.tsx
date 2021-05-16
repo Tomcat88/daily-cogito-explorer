@@ -29,9 +29,11 @@ type ObjectList<T> = {
 
 export type ShowEpisode = {
   id: string;
+  uri: string;
   name: string;
   release_date: string;
   description: string;
+  description_html?: string;
   images: Image[];
   duration_ms: number;
 };

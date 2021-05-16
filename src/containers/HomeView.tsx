@@ -33,9 +33,7 @@ const Home = () => {
   useEffect(() => {
     (async () => {
       const isLogged = await SpotifyAPI.isLogged();
-      if (!isLogged) {
-        await SpotifyAPI.login(history);
-      } else {
+      if (isLogged) {
         await loadAuth();
       }
       const show = await SpotifyAPI.getShowInfo();
@@ -75,33 +73,40 @@ const Home = () => {
             alt="logo"
           />
         )}
-        <div className="w-1/2 flex items-center">
-          <div className="w-full bg-white flex items-center rounded-full shadow-xl">
-            <input
-              className="text-4xl rounded-full w-full py-4 px-6 text-gray-700 leading-tight focus:outline-none"
-              id="search"
-              type="text"
-              placeholder="Cerca episodi per nome o descrizione..."
-              onChange={(e) => {
-                setQuery(e.target.value);
-                onChange(e.target.value);
-              }}
-              value={query}
-            />
-            {query && (
-              <div className="mr-5">
-                <button>
-                  <FontAwesomeIcon icon={faTimes} size="2x" onClick={onClear} />
-                </button>
-              </div>
-            )}
+        {isLogged && (
+          <div className="w-1/2 flex items-center">
+            <div className="w-full bg-white flex items-center rounded-full shadow-xl">
+              <input
+                className="text-4xl rounded-full w-full py-4 px-6 text-gray-700 leading-tight focus:outline-none"
+                id="search"
+                type="text"
+                placeholder="Cerca episodi per nome o descrizione..."
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  onChange(e.target.value);
+                }}
+                value={query}
+              />
+              {query && (
+                <div className="mr-5">
+                  <button>
+                    <FontAwesomeIcon
+                      icon={faTimes}
+                      size="2x"
+                      onClick={onClear}
+                    />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <div className="mt-10 mr-10 px-5 flex flex-col text-4xl text-white">
         {isLogged || (
           <Button
             color="success"
+            className="max-w-2xl"
             onClick={async () => await SpotifyAPI.login(history)}
           >
             Login to Spotify
