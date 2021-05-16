@@ -1,12 +1,12 @@
 import { Action, configureStore, ThunkAction } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
-import todoReducer from './slices/ToDoSlice';
 import episodes from './slices/EpisodeSlice';
+import playback from './slices/PlaybackSlice';
 
 export const store = configureStore({
   reducer: {
     episodes,
-    todos: todoReducer,
+    playback,
   },
 });
 

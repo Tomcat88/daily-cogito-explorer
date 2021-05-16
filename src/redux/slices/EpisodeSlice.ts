@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import Spotify, { refreshAuth, ShowEpisode } from '../../lib/Spotify';
+import SpotifyAPI, { refreshAuth, ShowEpisode } from '../../lib/Spotify';
 import { AppThunk } from '../store';
 
 type EpisodeState = {
@@ -51,7 +51,7 @@ export function loadEpisodes(nextUrl?: string): AppThunk {
     console.log('dispatch loadEpisodes');
     try {
       dispatch(setLoading(true));
-      const { items, next } = await Spotify.getEpisodes(nextUrl);
+      const { items, next } = await SpotifyAPI.getEpisodes(nextUrl, 20);
       dispatch(setNextEpisodeUrl(next));
       dispatch(addEpisodes(items));
     } catch (err) {
@@ -73,7 +73,7 @@ export function search(q: string, startFromUrl?: string): AppThunk {
       let nextUrl: string | undefined = startFromUrl;
       do {
         console.log('search with ' + nextUrl);
-        const { items, next } = await Spotify.getEpisodes(nextUrl);
+        const { items, next } = await SpotifyAPI.getEpisodes(nextUrl);
         const terms = q.split(' ').map((t) => t.toLowerCase());
         const results = items.filter(
           (e) =>

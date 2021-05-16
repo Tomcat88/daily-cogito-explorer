@@ -4,9 +4,11 @@ import { ScriptCache } from '../util/ScriptCache';
 import { loadAuth } from './Spotify';
 import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Playback } from '../redux/slices/PlaybackSlice';
+import _ from 'lodash';
 
 interface Props {
-  playingRecordingId: string;
+  playback?: Playback;
 }
 
 interface State {
@@ -27,11 +29,11 @@ class SpotifyPlayer extends React.Component<Props, State> {
 
   public constructor(props: Props) {
     super(props);
-
+    console.log('init Spotify Player', props.playback);
+    this.spotifySDKCallback();
     new ScriptCache([
       {
         name: 'https://sdk.scdn.co/spotify-player.js',
-        callback: this.spotifySDKCallback,
       },
     ]);
 
@@ -51,6 +53,7 @@ class SpotifyPlayer extends React.Component<Props, State> {
 
   private spotifySDKCallback = () => {
     window.onSpotifyWebPlaybackSDKReady = () => {
+      console.log('spotify sdk callback');
       const spotifyPlayer = new Spotify.Player({
         name: 'React Spotify Player',
         getOAuthToken: (cb) => {
@@ -150,38 +153,63 @@ class SpotifyPlayer extends React.Component<Props, State> {
   };
 
   render() {
+    const { playback } = this.props;
+
+    if (!playback) return null;
+
+    const { name, images } = playback.item;
+    const image = _.find(images, (i) => i.height === 300);
     return (
-      <footer className="fixed h-28 bg-opacity-90	bg-black w-full bottom-0 flex items-center justify-center text-white">
-        <div className="">
-          <div className="">
-            {this.state.spotifyPlayerReady && !this.state.playbackOn && (
-              <div
-                className="cursor-pointer"
-                onClick={() => {
-                  if (!this.state.playbackOn) {
-                    this.startPlayback(this.props.playingRecordingId);
-                  } else {
-                    if (this.state.playbackPaused) {
-                      this.resumePlayback();
-                    }
-                  }
-                }}
-              >
-                <FontAwesomeIcon icon={faPlay} size="1x" />
+      <footer className="fixed pl-2 pt-2 h-28 bg-opacity-90	bg-black w-full bottom-0 flex text-white text-xl">
+        <div className="w-full">
+          <div className="flex flex-col">
+            <div className="flex flex-row w-full">
+              <img
+                src={image?.url}
+                className="h-24 mr-2 rounded shadow"
+                alt="episode image"
+              />
+              <div className="ml-1 w-full flex flex-col">
+                <span>{name}</span>
+                <div className="flex flex-col justify-items-center items-center">
+                  {this.state.spotifyPlayerReady && !this.state.playbackOn && (
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (!this.state.playbackOn) {
+                          this.startPlayback(playback.item.uri);
+                        } else {
+                          if (this.state.playbackPaused) {
+                            this.resumePlayback();
+                          }
+                        }
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faPlay} size="2x" />
+                    </div>
+                  )}
+                  {this.state.spotifyPlayerReady && this.state.playbackOn && (
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (!this.state.playbackPaused) {
+                          this.pauseTrack();
+                        }
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faPause} size="2x" />
+                    </div>
+                  )}
+                </div>
+                <div className="h-3 relative max-w-xl rounded-full overflow-hidden">
+                  <div className="w-full h-full bg-gray-200 absolute"></div>
+                  <div
+                    className="h-full bg-green-500 absolute"
+                    style={{ width: '10%' }}
+                  ></div>
+                </div>
               </div>
-            )}
-            {this.state.spotifyPlayerReady && this.state.playbackOn && (
-              <div
-                className="cursor-pointer"
-                onClick={() => {
-                  if (!this.state.playbackPaused) {
-                    this.pauseTrack();
-                  }
-                }}
-              >
-                <FontAwesomeIcon icon={faPause} size="1x" />
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </footer>

@@ -63,7 +63,7 @@ export default ({ query }: { query?: string }) => {
           </svg>
         </div>
       )}
-      <div className="h-32"></div>
+      {/* <div className="h-32"></div> */}
     </>
   );
 };

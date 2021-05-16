@@ -13,7 +13,7 @@ const API_URL = 'https://api.spotify.com/v1';
 const CLIENT_ID = '5bc24f8db71840ef9066aa5cf44a46ea';
 
 const scopes =
-  'streaming user-read-playback-position user-read-email user-read-private';
+  'streaming user-read-playback-state user-read-playback-position user-read-email user-read-private';
 
 type SpotifyAuth = {
   access_token: string;
@@ -48,7 +48,11 @@ export type Show = {
   images: Image[];
 };
 
-class Spotify {
+class SpotifyAPI {
+  static loggedAxios = axios.create({
+    baseURL: API_URL,
+    timeout: 3000,
+  });
   static async isLogged() {
     const auth_on = parseInt(cookies.get('spotify_auth_on') || '-1');
     const expires_in = parseInt(cookies.get('spotify_expire') || '-1');
@@ -117,9 +121,7 @@ class Spotify {
 
   static async getShowInfo() {
     try {
-      await loadAuth();
-      console.log(axios.defaults.headers.common['Authorization']);
-      const r = await axios.get(`${API_URL}/shows/${SHOW_ID}`);
+      const r = await this.loggedAxios(`/shows/${SHOW_ID}`);
       return r.data;
     } catch (err) {
       console.error(err);
@@ -127,14 +129,16 @@ class Spotify {
     }
   }
 
-  static async getEpisodes(nextUrl?: string): Promise<ObjectList<ShowEpisode>> {
+  static async getEpisodes(
+    nextUrl?: string,
+    limit: number = 50,
+  ): Promise<ObjectList<ShowEpisode>> {
     try {
-      await loadAuth();
-      const r = await axios.get(
-        nextUrl || `${API_URL}/shows/${SHOW_ID}/episodes`,
+      const r = await this.loggedAxios.get(
+        nextUrl || `/shows/${SHOW_ID}/episodes`,
         {
           params: {
-            limit: 20,
+            limit,
           },
         },
       );
@@ -146,21 +150,68 @@ class Spotify {
     }
   }
 
-  static async search(q: string) {
+  static async currentlyPlayback() {
     try {
-      let results = [];
-      let nextUrl: string | undefined;
-      do {
-        console.log('search with ' + nextUrl);
-        const { items, next } = await Spotify.getEpisodes(nextUrl);
-        results.push(...items);
-        console.log(results.length);
-        nextUrl = next;
-      } while (results.length < 100 && nextUrl != null);
+      const r = await this.loggedAxios.get(
+        `/me/player/currently-playing?additional_types=episode`,
+      );
+      if (r.status === 204) return Promise.resolve();
 
-      return results;
+      return r.data;
     } catch (err) {
       console.error(err);
+      return Promise.reject();
+    }
+  }
+
+  static async startPlayback(deviceId: string, uri: string) {
+    try {
+      const r = await this.loggedAxios.put(
+        `/me/player/play?device_id=${deviceId}`,
+        { uris: [uri] },
+      );
+      console.log('playback', r);
+      if (r.status === 403) {
+        return Promise.reject('premium');
+      } else {
+        return true;
+      }
+    } catch (error) {
+      console.log(error);
+      return Promise.reject();
+    }
+  }
+
+  static async resumePlayback(deviceId: string) {
+    try {
+      const r = await this.loggedAxios.put(
+        `/me/player/play?device_id=${deviceId}`,
+      );
+      console.log('resume', r);
+      if (r.status === 403) {
+        return Promise.reject('premium');
+      } else {
+        return true;
+      }
+    } catch (error) {
+      console.log(error);
+      return Promise.reject();
+    }
+  }
+
+  static async pausePlayback(deviceId: string) {
+    try {
+      const r = await this.loggedAxios.put(
+        `/me/player/pause?device_id=${deviceId}`,
+      );
+      console.log('pause', r);
+      if (r.status === 403) {
+        return Promise.reject('premium');
+      } else {
+        return true;
+      }
+    } catch (error) {
+      console.log(error);
       return Promise.reject();
     }
   }
@@ -168,6 +219,8 @@ class Spotify {
 
 export async function refreshAuth() {
   const refresh_token = cookies.get('spotify_refresh_token');
+  if (!refresh_token) return Promise.reject();
+
   const response = await axios.post(
     `${BASE_URL}/api/token`,
     querystring.stringify({
@@ -206,8 +259,12 @@ function saveAuth({
   cookies.set('spotify_auth_on', getUnixTime(new Date()).toString(), {
     expires: 7,
   });
-  axios.defaults.headers.common['Authorization'] = 'Bearer ' + access_token;
-  console.log('axios', axios.defaults.headers.common['Authorization']);
+  SpotifyAPI.loggedAxios.defaults.headers.common['Authorization'] =
+    'Bearer ' + access_token;
+  console.log(
+    'axios',
+    SpotifyAPI.loggedAxios.defaults.headers.common['Authorization'],
+  );
 }
 
 export async function loadAuth(): Promise<SpotifyAuth> {
@@ -215,17 +272,17 @@ export async function loadAuth(): Promise<SpotifyAuth> {
   const expires_in = parseInt(cookies.get('spotify_expire') || '-1');
   const access_token = cookies.get('spotify_access_token');
   const refresh_token = cookies.get('spotify_refresh_token');
-  if (auth_on === -1 || expires_in === -1) return Promise.reject();
-  if (!access_token || !refresh_token) return Promise.reject();
-  const { verifier } = getStateAndVerifier();
-  if (!verifier) return Promise.reject();
+  if (auth_on === -1 || expires_in === -1 || !access_token || !refresh_token)
+    return Promise.reject();
+
   const expireTime = addSeconds(fromUnixTime(auth_on), expires_in);
   if (isAfter(new Date(), expireTime)) {
     console.log('isAfter', new Date(), expireTime);
     const auth = await refreshAuth();
     return auth;
   } else {
-    axios.defaults.headers.common['Authorization'] = 'Bearer ' + access_token;
+    SpotifyAPI.loggedAxios.defaults.headers.common['Authorization'] =
+      'Bearer ' + access_token;
     return {
       access_token,
       refresh_token,
@@ -246,7 +303,7 @@ export const SpotifyAuthCallback = () => {
   }
   useEffect(() => {
     const fetchToken = async () => {
-      await Spotify.logincb(history, state, code);
+      await SpotifyAPI.logincb(history, state, code);
     };
     fetchToken();
   }, []);
@@ -288,4 +345,4 @@ function saveAndGetStateAndVerifier() {
 
 loadAuth();
 
-export default Spotify;
+export default SpotifyAPI;

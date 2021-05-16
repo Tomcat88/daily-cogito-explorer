@@ -1,6 +1,6 @@
 import { Button, Collapse } from 'reactstrap';
 import { useHistory } from 'react-router-dom';
-import Spotify, { ShowEpisode } from '../lib/Spotify';
+import SpotifyAPI, { loadAuth, refreshAuth, ShowEpisode } from '../lib/Spotify';
 import React, { useEffect, useState, useCallback } from 'react';
 import _ from 'lodash';
 import EpisodeList from './EpisodeList';
@@ -13,28 +13,37 @@ import {
   search,
   setNextEpisodeUrl,
 } from '../redux/slices/EpisodeSlice';
+import {
+  loadCurrentlyPlaying,
+  spotifySDKCallback,
+} from '../redux/slices/PlaybackSlice';
 import SpotifyPlayer from '../lib/SpotifyPlayer';
+import PlayerView from './PlayerView';
 
 const Home = () => {
   const history = useHistory();
-  const [isSearching, setIsSearching] = useState();
-  const [showName, setShowName] = useState();
   const [showImage, setShowImage] = useState();
   const [isLogged, setIsLogged] = useState(false);
   const [query, setQuery] = useState<string | undefined>();
   const dispatch = useAppDispatch();
-  const { nextEpisodeUrl } = useAppSelector((state) => state.episodes);
+  const { playbackAvailable, playback } = useAppSelector(
+    (state) => state.playback,
+  );
 
   useEffect(() => {
     (async () => {
-      const isLogged = await Spotify.isLogged();
-      const show = await Spotify.getShowInfo();
-      setShowName(show?.name);
+      const isLogged = await SpotifyAPI.isLogged();
+      if (!isLogged) {
+        await SpotifyAPI.login(history);
+      } else {
+        await loadAuth();
+      }
+      const show = await SpotifyAPI.getShowInfo();
       setShowImage(_.find(show?.images, (i) => i.width === 640)?.url);
       setIsLogged(isLogged);
-      if (isLogged) {
-        dispatch(loadEpisodes());
-      }
+      dispatch(loadEpisodes());
+      dispatch(loadCurrentlyPlaying());
+      dispatch(spotifySDKCallback());
     })();
   }, []);
   const onChange = useCallback(
@@ -93,14 +102,14 @@ const Home = () => {
         {isLogged || (
           <Button
             color="success"
-            onClick={async () => await Spotify.login(history)}
+            onClick={async () => await SpotifyAPI.login(history)}
           >
             Login to Spotify
           </Button>
         )}
-        <EpisodeList query={query} />
+        {isLogged && <EpisodeList query={query} />}
       </div>
-      <SpotifyPlayer playingRecordingId="spotify:episode:1IzNyKUDbwWWAGCKA2bM2k" />
+      {isLogged && playback && <PlayerView />}
     </div>
   );
 };
