@@ -84,7 +84,7 @@ class SpotifyAPI {
       querystring.stringify({
         response_type: 'code',
         client_id: CLIENT_ID,
-        redirect_uri: 'http://localhost:3000/logincb',
+        redirect_uri: `${window.location.protocol}//${window.location.host}/logincb`,
         state,
         scope: scopes,
         code_challenge_method: 'S256',
