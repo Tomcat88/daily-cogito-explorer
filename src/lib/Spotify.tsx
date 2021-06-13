@@ -36,8 +36,13 @@ export type ShowEpisode = {
   description_html?: string;
   images: Image[];
   duration_ms: number;
+  resume_point: ResumePoint;
 };
 
+export type ResumePoint = {
+  fully_played: boolean;
+  resume_position_ms: number;
+};
 export type Image = {
   url: string;
   width: number;
@@ -152,7 +157,7 @@ class SpotifyAPI {
     }
   }
 
-  static async currentlyPlayback() {
+  static async currentlyPlaying() {
     try {
       const r = await this.loggedAxios.get(
         `/me/player/currently-playing?additional_types=episode`,
@@ -166,11 +171,25 @@ class SpotifyAPI {
     }
   }
 
-  static async startPlayback(deviceId: string, uri: string) {
+  static async currentPlayback() {
+    try {
+      const r = await this.loggedAxios.get(
+        `/me/player?additional_types=episode`,
+      );
+
+      return r.data;
+    } catch (err) {
+      console.error(err);
+      return Promise.reject();
+    }
+  }
+
+  static async startPlayback(uri: string, deviceId?: string) {
     try {
       const r = await this.loggedAxios.put(
-        `/me/player/play?device_id=${deviceId}`,
+        `/me/player/play`,
         { uris: [uri] },
+        { params: { device_id: deviceId } },
       );
       console.log('playback', r);
       if (r.status === 403) {
@@ -184,10 +203,12 @@ class SpotifyAPI {
     }
   }
 
-  static async resumePlayback(deviceId: string) {
+  static async resumePlayback(deviceId?: string) {
     try {
       const r = await this.loggedAxios.put(
         `/me/player/play?device_id=${deviceId}`,
+        {},
+        { params: { device_id: deviceId } },
       );
       console.log('resume', r);
       if (r.status === 403) {
@@ -201,10 +222,12 @@ class SpotifyAPI {
     }
   }
 
-  static async pausePlayback(deviceId: string) {
+  static async pausePlayback(deviceId?: string) {
     try {
       const r = await this.loggedAxios.put(
         `/me/player/pause?device_id=${deviceId}`,
+        {},
+        { params: { device_id: deviceId } },
       );
       console.log('pause', r);
       if (r.status === 403) {

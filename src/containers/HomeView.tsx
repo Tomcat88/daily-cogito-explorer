@@ -15,6 +15,7 @@ import {
 } from '../redux/slices/EpisodeSlice';
 import {
   loadCurrentlyPlaying,
+  loadCurrentPlayback,
   spotifySDKCallback,
 } from '../redux/slices/PlaybackSlice';
 import SpotifyPlayer from '../lib/SpotifyPlayer';
@@ -26,7 +27,7 @@ const Home = () => {
   const [isLogged, setIsLogged] = useState(false);
   const [query, setQuery] = useState<string | undefined>();
   const dispatch = useAppDispatch();
-  const { playbackAvailable, playback } = useAppSelector(
+  const { playbackAvailable, playback, playbackOn, isPlaying, playbackDevice } = useAppSelector(
     (state) => state.playback,
   );
 
@@ -40,10 +41,17 @@ const Home = () => {
       setShowImage(_.find(show?.images, (i) => i.width === 640)?.url);
       setIsLogged(isLogged);
       dispatch(loadEpisodes());
-      dispatch(loadCurrentlyPlaying());
       dispatch(spotifySDKCallback());
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      dispatch(loadCurrentlyPlaying());
+      dispatch(loadCurrentPlayback());
+    })();
+  }, [playbackOn, isPlaying]);
+
   const onChange = useCallback(
     _.debounce((q) => {
       console.log('onChange');

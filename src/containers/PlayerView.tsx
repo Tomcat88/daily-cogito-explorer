@@ -11,15 +11,25 @@ import {
   resumePlayback,
   pausePlayback,
 } from '../redux/slices/PlaybackSlice';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { updateResumePoint } from '../redux/slices/EpisodeSlice';
 export default () => {
   const dispatch = useAppDispatch();
-  const { playback, playbackAvailable, playbackOn, isPlaying } = useAppSelector(
-    (s) => s.playback,
-  );
-  if (!playback) return null;
-  const { progress_ms, item, is_playing } = playback;
-  const [progress, setProgress] = useState(progress_ms);
+  const {
+    playback,
+    playbackAvailable,
+    playbackOn,
+    isPlaying,
+    progressMs,
+    item,
+  } = useAppSelector((s) => s.playback);
+  if (!playback || !item) return null;
+
+  const [progress, setProgress] = useState(progressMs || 0);
+  //console.log(progress, progressMs);
+  const [progressInterval, setProgressInterval] = useState<
+    NodeJS.Timeout | undefined
+  >();
   const { name, images, duration_ms } = item;
   const image = _.find(images, (i) => i.height === 300);
   const onChange = useCallback(
@@ -29,6 +39,46 @@ export default () => {
     }, 1000),
     [],
   );
+  console.log(item.uri);
+  useEffect(() => {
+    // console.log('update resume point', progress);
+    dispatch(
+      updateResumePoint({
+        id: item.id,
+        resume_point: {
+          fully_played: false,
+          resume_position_ms: progress,
+        },
+      }),
+    );
+  }, [progress]);
+
+  useEffect(() => {
+    console.log('update progress with progressMs');
+    setProgress(progressMs || 0);
+  }, [progressMs]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      console.log('set progress interval');
+      console.log(progressInterval);
+      setProgressInterval(
+        setInterval(() => {
+          setProgress((p) => p + 1000);
+        }, 1000),
+      );
+      return () => {
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+      };
+    } else {
+      console.log('clear progress interval');
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    }
+  }, [isPlaying]);
   const durationDuration = intervalToDuration({
     start: 0,
     end: addMilliseconds(0, duration_ms),
@@ -37,8 +87,22 @@ export default () => {
     start: 0,
     end: addMilliseconds(0, progress),
   });
-
-  console.log(durationDuration, progressDuration);
+  const progressStr = `${
+    progressDuration.hours
+      ? String(progressDuration.hours).padStart(2, '0') + ':'
+      : ''
+  }${String(progressDuration.minutes).padStart(2, '0')}:${String(
+    progressDuration.seconds,
+  ).padStart(2, '0')}`;
+  const durationStr = `${
+    durationDuration.hours
+      ? String(durationDuration.hours).padStart(2, '0') + ':'
+      : ''
+  }${String(durationDuration.minutes).padStart(2, '0')}:${String(
+    durationDuration.seconds,
+  ).padStart(2, '0')}`;
+  // console.log(durationDuration, progressDuration);
+  // console.log('playbackAvailable', playbackAvailable, 'playbackOn', playbackOn);
   return (
     <footer className="fixed pl-2 pt-2 h-28 bg-opacity-90	bg-black w-full bottom-0 flex text-white text-xl">
       <div className="w-full">
@@ -68,7 +132,7 @@ export default () => {
                     <FontAwesomeIcon icon={faPlay} size="2x" />
                   </div>
                 )}
-                {playbackAvailable && playbackOn && isPlaying && (
+                {playbackAvailable && isPlaying && (
                   <div
                     className="cursor-pointer"
                     onClick={() => {
@@ -79,8 +143,8 @@ export default () => {
                   </div>
                 )}
               </div>
-              <div className="mt-1 mx-5 flex flex-row">
-                {`${progressDuration.hours}:${progressDuration.minutes}:${progressDuration.seconds}`}
+              <div className="mx-5 flex flex-row items-center">
+                <span className="mr-2">{progressStr}</span>
                 <Slider
                   value={progress}
                   step={1000}
@@ -90,7 +154,7 @@ export default () => {
                   railStyle={{ height: '10px' }}
                   handle={() => <i></i>}
                 />
-                {`${durationDuration.hours}:${durationDuration.minutes}:${durationDuration.seconds}`}
+                <span className="ml-2">{durationStr}</span>
               </div>
             </div>
           </div>

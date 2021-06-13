@@ -1,6 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import SpotifyAPI, { refreshAuth, ShowEpisode } from '../../lib/Spotify';
+import SpotifyAPI, {
+  refreshAuth,
+  ResumePoint,
+  ShowEpisode,
+} from '../../lib/Spotify';
 import { AppThunk } from '../store';
+import find from 'lodash/find';
 
 type EpisodeState = {
   episodes: ShowEpisode[];
@@ -33,6 +38,19 @@ const episodeSlice = createSlice({
       console.log('clearEpisodes');
       state.episodes = [];
     },
+    updateResumePoint(
+      state,
+      { payload }: PayloadAction<{ id: string; resume_point: ResumePoint }>,
+    ) {
+      const { id, resume_point } = payload;
+
+      const ep = find(state.episodes, (e) => e.id === id);
+      // console.log('find ep for id', id, ep);
+      if (ep) {
+        // console.log('found ep', ep);
+        ep.resume_point = resume_point;
+      }
+    },
   },
 });
 
@@ -44,6 +62,7 @@ export const {
   setEpisodes,
   setLoading,
   clearEpisodes,
+  updateResumePoint,
 } = episodeSlice.actions;
 
 export function loadEpisodes(nextUrl?: string): AppThunk {
