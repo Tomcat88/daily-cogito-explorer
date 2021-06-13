@@ -27,9 +27,13 @@ const Home = () => {
   const [isLogged, setIsLogged] = useState(false);
   const [query, setQuery] = useState<string | undefined>();
   const dispatch = useAppDispatch();
-  const { playbackAvailable, playback, playbackOn, isPlaying, playbackDevice } = useAppSelector(
-    (state) => state.playback,
-  );
+  const {
+    playbackAvailable,
+    playback,
+    playbackOn,
+    isPlaying,
+    playbackDevice,
+  } = useAppSelector((state) => state.playback);
 
   useEffect(() => {
     (async () => {
@@ -115,7 +119,13 @@ const Home = () => {
           <Button
             color="success"
             className="max-w-2xl"
-            onClick={async () => await SpotifyAPI.login(history)}
+            onClick={async () => {
+              try {
+                await SpotifyAPI.login(history);
+              } catch (error) {
+                console.log('error on login', error);
+              }
+            }}
           >
             Login to Spotify
           </Button>

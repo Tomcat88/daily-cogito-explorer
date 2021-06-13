@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { Redirect, useHistory, useLocation } from 'react-router';
 import cookies from 'js-cookie';
 import { addSeconds, getUnixTime, fromUnixTime, isAfter } from 'date-fns';
+import ca from 'date-fns/esm/locale/ca/index.js';
 const SHOW_ID = '3CPV6sZxGV3fVuDLbR9uWh';
 const BASE_URL = 'https://accounts.spotify.com';
 const API_URL = 'https://api.spotify.com/v1';
@@ -112,7 +113,7 @@ class SpotifyAPI {
         client_id: CLIENT_ID,
         grant_type: 'authorization_code',
         code: codeParam,
-        redirect_uri: 'http://localhost:3000/logincb',
+        redirect_uri: `${window.location.protocol}//${window.location.host}/logincb`,
         code_verifier: verifier,
       }),
       {
@@ -328,7 +329,11 @@ export const SpotifyAuthCallback = () => {
   }
   useEffect(() => {
     const fetchToken = async () => {
-      await SpotifyAPI.logincb(history, state, code);
+      try {
+        await SpotifyAPI.logincb(history, state, code);
+      } catch (err) {
+        console.error('error on logincb', err);
+      }
     };
     fetchToken();
   }, []);
