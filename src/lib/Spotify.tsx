@@ -34,7 +34,7 @@ export type ShowEpisode = {
   name: string;
   release_date: string;
   description: string;
-  description_html?: string;
+  html_description?: string;
   images: Image[];
   duration_ms: number;
   resume_point: ResumePoint;
@@ -69,7 +69,7 @@ class SpotifyAPI {
 
     if (auth_on === -1 || expires_in === -1 || !access_token || !refresh_token)
       return false;
-
+    console.log('logged');
     return true;
   }
   static async login(history: History<unknown>) {
@@ -245,7 +245,7 @@ class SpotifyAPI {
 
 export async function refreshAuth() {
   const refresh_token = cookies.get('spotify_refresh_token');
-  if (!refresh_token) return Promise.reject();
+  if (!refresh_token) return Promise.reject('unlogged');
 
   const response = await axios.post(
     `${BASE_URL}/api/token`,
@@ -299,7 +299,7 @@ export async function loadAuth(): Promise<SpotifyAuth> {
   const access_token = cookies.get('spotify_access_token');
   const refresh_token = cookies.get('spotify_refresh_token');
   if (auth_on === -1 || expires_in === -1 || !access_token || !refresh_token)
-    return Promise.reject();
+    return Promise.reject('unlogged');
 
   const expireTime = addSeconds(fromUnixTime(auth_on), expires_in);
   if (isAfter(new Date(), expireTime)) {
@@ -373,6 +373,6 @@ function saveAndGetStateAndVerifier() {
   return { state, verifier };
 }
 
-loadAuth();
+// loadAuth();
 
 export default SpotifyAPI;

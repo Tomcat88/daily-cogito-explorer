@@ -27,6 +27,7 @@ export default ({ episode }: { episode: ShowEpisode }) => {
   const {
     name,
     description,
+    html_description,
     images,
     release_date,
     duration_ms,
@@ -93,7 +94,13 @@ export default ({ episode }: { episode: ShowEpisode }) => {
           </div>
         </div>
         <Collapse isOpen={open} className="max-w-4xl mt-3">
-          <p className="text-sm">{description}</p>
+          {html_description && (
+            <p
+              className="text-sm"
+              dangerouslySetInnerHTML={{ __html: html_description }}
+            ></p>
+          )}
+          {!html_description && <p className="text-sm">{description}</p>}
         </Collapse>
       </div>
     </li>

@@ -1,25 +1,19 @@
-import { Button, Collapse } from 'reactstrap';
+import { Button } from 'reactstrap';
 import { useHistory } from 'react-router-dom';
-import SpotifyAPI, { loadAuth, refreshAuth, ShowEpisode } from '../lib/Spotify';
-import React, { useEffect, useState, useCallback } from 'react';
+import SpotifyAPI, { loadAuth } from '../lib/Spotify';
+import { useEffect, useState } from 'react';
 import _ from 'lodash';
 import EpisodeList from './EpisodeList';
 import { useAppDispatch, useAppSelector } from '../redux/store';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  clearEpisodes,
-  loadEpisodes,
-  search,
-  setNextEpisodeUrl,
-} from '../redux/slices/EpisodeSlice';
+import { loadEpisodes } from '../redux/slices/EpisodeSlice';
 import {
   loadCurrentlyPlaying,
   loadCurrentPlayback,
   spotifySDKCallback,
 } from '../redux/slices/PlaybackSlice';
-import SpotifyPlayer from '../lib/SpotifyPlayer';
 import PlayerView from './PlayerView';
+import { toast } from 'react-toastify';
+import SearchView from './SearchView';
 
 const Home = () => {
   const history = useHistory();
@@ -27,57 +21,58 @@ const Home = () => {
   const [isLogged, setIsLogged] = useState(false);
   const [query, setQuery] = useState<string | undefined>();
   const dispatch = useAppDispatch();
-  const {
-    playbackAvailable,
-    playback,
-    playbackOn,
-    isPlaying,
-    playbackDevice,
-  } = useAppSelector((state) => state.playback);
+  const { playback, playbackOn, isPlaying } = useAppSelector(
+    (state) => state.playback,
+  );
 
   useEffect(() => {
     (async () => {
       const isLogged = await SpotifyAPI.isLogged();
       if (isLogged) {
-        await loadAuth();
+        try {
+          await loadAuth();
+          const show = await SpotifyAPI.getShowInfo();
+          setShowImage(_.find(show?.images, (i) => i.width === 640)?.url);
+          setIsLogged(isLogged);
+          dispatch(loadEpisodes());
+          dispatch(spotifySDKCallback());
+        } catch (error) {
+          if (error !== 'unlogged') {
+            toast.error(`Errore: ${error}`);
+          }
+        }
       }
-      const show = await SpotifyAPI.getShowInfo();
-      setShowImage(_.find(show?.images, (i) => i.width === 640)?.url);
-      setIsLogged(isLogged);
-      dispatch(loadEpisodes());
-      dispatch(spotifySDKCallback());
     })();
   }, []);
 
   useEffect(() => {
     (async () => {
-      dispatch(loadCurrentlyPlaying());
-      dispatch(loadCurrentPlayback());
-    })();
-  }, [playbackOn, isPlaying]);
-
-  const onChange = useCallback(
-    _.debounce((q) => {
-      console.log('onChange');
-      dispatch(setNextEpisodeUrl(undefined));
-      dispatch(clearEpisodes());
-      if (!q || q === '') {
-        dispatch(loadEpisodes());
-      } else {
-        dispatch(search(q));
+      if (isLogged) {
+        dispatch(loadCurrentlyPlaying());
+        dispatch(loadCurrentPlayback());
       }
-    }, 1000),
-    [],
-  );
+    })();
+  }, [isLogged, playbackOn, isPlaying]);
 
-  const onClear = () => {
-    setQuery('');
-    dispatch(clearEpisodes());
-    dispatch(loadEpisodes());
-  };
+  const unloggedView = (
+    <Button
+      color="success"
+      className="max-w-2xl"
+      onClick={async () => {
+        try {
+          await SpotifyAPI.login(history);
+        } catch (error) {
+          console.log('error on login', error);
+        }
+      }}
+    >
+      Login to Spotify
+    </Button>
+  );
   return (
     <div className="pt-2">
       <div className="flex">
+        {isLogged || unloggedView}
         {showImage && (
           <img
             src={showImage}
@@ -85,51 +80,9 @@ const Home = () => {
             alt="logo"
           />
         )}
-        {isLogged && (
-          <div className="w-1/2 flex items-center">
-            <div className="w-full bg-white flex items-center rounded-full shadow-xl">
-              <input
-                className="text-4xl rounded-full w-full py-4 px-6 text-gray-700 leading-tight focus:outline-none"
-                id="search"
-                type="text"
-                placeholder="Cerca episodi per nome o descrizione..."
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  onChange(e.target.value);
-                }}
-                value={query}
-              />
-              {query && (
-                <div className="mr-5">
-                  <button>
-                    <FontAwesomeIcon
-                      icon={faTimes}
-                      size="2x"
-                      onClick={onClear}
-                    />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {isLogged && <SearchView query={query} setQuery={setQuery} />}
       </div>
       <div className="mt-10 mr-10 px-5 flex flex-col text-4xl text-white">
-        {isLogged || (
-          <Button
-            color="success"
-            className="max-w-2xl"
-            onClick={async () => {
-              try {
-                await SpotifyAPI.login(history);
-              } catch (error) {
-                console.log('error on login', error);
-              }
-            }}
-          >
-            Login to Spotify
-          </Button>
-        )}
         {isLogged && <EpisodeList query={query} />}
       </div>
       {isLogged && playback && <PlayerView />}
